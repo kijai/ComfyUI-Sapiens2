@@ -1,3 +1,3 @@
 ComfyUI nodes for [Sapiens2](https://github.com/facebookresearch/sapiens2)
 
-<img width="2867" height="1419" alt="image" src="https://github.com/user-attachments/assets/8719a5ea-5f5e-43bc-be2a-9b5123e79838" />
+<img width="1691" height="1530" alt="image" src="https://github.com/user-attachments/assets/da27e8be-ed85-4c5f-a83a-e43713599b72" />
