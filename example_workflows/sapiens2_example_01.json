@@ -1,0 +1,1480 @@
+{
+  "id": "757ff6eb-336e-4f6d-89dc-48283dfc0e9e",
+  "revision": 0,
+  "last_node_id": 67,
+  "last_link_id": 118,
+  "nodes": [
+    {
+      "id": 38,
+      "type": "LoadImage",
+      "pos": [
+        -1136.7713204201511,
+        3918.8317957866657
+      ],
+      "size": [
+        282.798828125,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            82
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ComfyUI_00009_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 40,
+      "type": "ImageResizeKJv2",
+      "pos": [
+        -785.810259294326,
+        3904.6536656017456
+      ],
+      "size": [
+        270,
+        286
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 82
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            83,
+            101
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageResizeKJv2"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        "lanczos",
+        "resize",
+        "0, 0, 0",
+        "center",
+        2,
+        "cpu"
+      ]
+    },
+    {
+      "id": 36,
+      "type": "Sapiens2DrawPose",
+      "pos": [
+        934.3827772618188,
+        5539.382456069291
+      ],
+      "size": [
+        299.0240234375,
+        178
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "keypoints",
+          "type": "POSE_KEYPOINT",
+          "link": 72
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            73
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2DrawPose"
+      },
+      "widgets_values": [
+        true,
+        true,
+        true,
+        2,
+        2,
+        0.3
+      ]
+    },
+    {
+      "id": 53,
+      "type": "GetNode",
+      "pos": [
+        458.3922357251269,
+        2920.644540550274
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            104
+          ]
+        }
+      ],
+      "title": "Get_input_image_resized",
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "input_image_resized"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 46,
+      "type": "Sapiens2Seg",
+      "pos": [
+        709.3156430040626,
+        2875.026964806528
+      ],
+      "size": [
+        327.3384765625,
+        78
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 104
+        },
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "link": 96
+        }
+      ],
+      "outputs": [
+        {
+          "name": "class_id_mask",
+          "type": "MASK",
+          "links": [
+            99
+          ]
+        },
+        {
+          "name": "colored",
+          "type": "IMAGE",
+          "links": [
+            97
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Seg"
+      },
+      "widgets_values": [
+        1
+      ]
+    },
+    {
+      "id": 49,
+      "type": "MaskPreview",
+      "pos": [
+        1104.747434524588,
+        3010.4388615755147
+      ],
+      "size": [
+        367.7807268960455,
+        486.3480405846558
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 100
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MaskPreview"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 48,
+      "type": "PreviewImage",
+      "pos": [
+        1515.4995154259325,
+        2882.5269476797116
+      ],
+      "size": [
+        572.6026405748537,
+        571.5538564264725
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 97
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 47,
+      "type": "Sapiens2Loader",
+      "pos": [
+        427.42213914316716,
+        3042.3191007794962
+      ],
+      "size": [
+        330.4797836428065,
+        58
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "links": [
+            96
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Loader"
+      },
+      "widgets_values": [
+        "seg\\sapiens2_0.4b_seg.safetensors"
+      ]
+    },
+    {
+      "id": 42,
+      "type": "MarkdownNote",
+      "pos": [
+        -982.096040892934,
+        3301.8771493177887
+      ],
+      "size": [
+        508.9264932546066,
+        172.31949597857465
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Model links",
+      "properties": {},
+      "widgets_values": [
+        "RT-DETR_v4:\n\n[https://huggingface.co/Comfy-Org/SDPose/blob/main/diffusion_models/rt_detr_v4-x-hgnet_fp16.safetensors](https://huggingface.co/Comfy-Org/SDPose/blob/main/diffusion_models/rt_detr_v4-x-hgnet_fp16.safetensors)\n\nSapiens2:\n\nhttps://huggingface.co/collections/facebook/sapiens2"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 7,
+      "type": "RTDETR_detect",
+      "pos": [
+        -234.81073451200297,
+        3926.1156309760577
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 7
+        },
+        {
+          "label": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 83
+        }
+      ],
+      "outputs": [
+        {
+          "name": "bboxes",
+          "type": "BOUNDING_BOX",
+          "links": [
+            106
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RTDETR_detect"
+      },
+      "widgets_values": [
+        0.5,
+        "person",
+        100
+      ]
+    },
+    {
+      "id": 55,
+      "type": "SetNode",
+      "pos": [
+        83.10287174522371,
+        3975.9090638890916
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "BOUNDING_BOX",
+          "type": "BOUNDING_BOX",
+          "link": 106
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BOUNDING_BOX",
+          "type": "BOUNDING_BOX",
+          "links": null
+        }
+      ],
+      "title": "Set_bbox",
+      "properties": {
+        "Node name for S&R": "SetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes",
+        "previousName": "bbox"
+      },
+      "widgets_values": [
+        "bbox"
+      ]
+    },
+    {
+      "id": 56,
+      "type": "GetNode",
+      "pos": [
+        452.4900175739448,
+        5632.071879914239
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BOUNDING_BOX",
+          "type": "BOUNDING_BOX",
+          "links": [
+            107
+          ]
+        }
+      ],
+      "title": "Get_bbox",
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "bbox"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "ImageBlend",
+      "pos": [
+        1314.0599418045626,
+        5519.877472364285
+      ],
+      "size": [
+        270,
+        102
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "link": 103
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "link": 73
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            71
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageBlend"
+      },
+      "widgets_values": [
+        0.5,
+        "normal"
+      ]
+    },
+    {
+      "id": 52,
+      "type": "GetNode",
+      "pos": [
+        1313.5577146088594,
+        5461.052778257991
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            103
+          ]
+        }
+      ],
+      "title": "Get_input_image_resized",
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "input_image_resized"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 35,
+      "type": "PreviewImage",
+      "pos": [
+        1655.7540293275986,
+        5293.7525396430765
+      ],
+      "size": [
+        602.7491144632311,
+        721.7923616925655
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 71
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 51,
+      "type": "SetNode",
+      "pos": [
+        -449.946673964842,
+        3961.77697108697
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "link": 101
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "title": "Set_input_image_resized",
+      "properties": {
+        "Node name for S&R": "SetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes",
+        "previousName": "input_image_resized"
+      },
+      "widgets_values": [
+        "input_image_resized"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 59,
+      "type": "GetNode",
+      "pos": [
+        905.9772890881945,
+        3898.8652545767873
+      ],
+      "size": [
+        210,
+        34
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            109
+          ]
+        }
+      ],
+      "title": "Get_input_image_resized",
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "input_image_resized"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 57,
+      "type": "Sapiens2Loader",
+      "pos": [
+        502.3348795797548,
+        3973.6139581133184
+      ],
+      "size": [
+        330.4797836428065,
+        58
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "links": [
+            108
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Loader"
+      },
+      "widgets_values": [
+        "normal\\sapiens2_0.4b_normal.safetensors"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "Sapiens2Pose",
+      "pos": [
+        633.6786808960558,
+        5540.28772432332
+      ],
+      "size": [
+        259.8177409713103,
+        158.3767571277367
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 105
+        },
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "link": 14
+        },
+        {
+          "name": "bboxes",
+          "shape": 7,
+          "type": "BOUNDING_BOX",
+          "link": 107
+        }
+      ],
+      "outputs": [
+        {
+          "name": "keypoints",
+          "type": "POSE_KEYPOINT",
+          "links": [
+            72
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Pose"
+      },
+      "widgets_values": [
+        "raw_308",
+        true,
+        1
+      ]
+    },
+    {
+      "id": 60,
+      "type": "PreviewImage",
+      "pos": [
+        1537.4073296138658,
+        3817.211986454464
+      ],
+      "size": [
+        479.0139561208757,
+        361.11287605295684
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 111
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 58,
+      "type": "Sapiens2Normal",
+      "pos": [
+        914.7249416666727,
+        3952.5644731579314
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 109
+        },
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "link": 108
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": 113
+        }
+      ],
+      "outputs": [
+        {
+          "name": "normal",
+          "type": "IMAGE",
+          "links": [
+            111
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Normal"
+      },
+      "widgets_values": [
+        1
+      ]
+    },
+    {
+      "id": 10,
+      "type": "Sapiens2Loader",
+      "pos": [
+        483.4810977449546,
+        5413.771602632239
+      ],
+      "size": [
+        330.4797836428065,
+        58
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Loader"
+      },
+      "widgets_values": [
+        "pose\\sapiens2_1b_pose.safetensors"
+      ]
+    },
+    {
+      "id": 62,
+      "type": "Sapiens2Loader",
+      "pos": [
+        587.1984325611459,
+        4586.5931917229245
+      ],
+      "size": [
+        330.4797836428065,
+        58
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "links": [
+            114
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Loader"
+      },
+      "widgets_values": [
+        "pointmap\\sapiens2_0.4b_pointmap.safetensors"
+      ]
+    },
+    {
+      "id": 54,
+      "type": "GetNode",
+      "pos": [
+        409.14283513747023,
+        5570.322931342074
+      ],
+      "size": [
+        210,
+        34
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            105
+          ]
+        }
+      ],
+      "title": "Get_input_image_resized",
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "input_image_resized"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 64,
+      "type": "GetNode",
+      "pos": [
+        685.9932111957645,
+        4493.364226396382
+      ],
+      "size": [
+        210,
+        34
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            115
+          ]
+        }
+      ],
+      "title": "Get_input_image_resized",
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "input_image_resized"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 63,
+      "type": "Sapiens2Pointmap",
+      "pos": [
+        1139.0689095811483,
+        4560.414768253924
+      ],
+      "size": [
+        276.6021484375,
+        194
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 115
+        },
+        {
+          "name": "sapiens2_model",
+          "type": "SAPIENS2_MODEL",
+          "link": 114
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": 118
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "FILE_3D_GLB",
+          "links": [
+            116
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2Pointmap"
+      },
+      "widgets_values": [
+        1,
+        0.04,
+        0.05,
+        25,
+        "sapiens2_pointmap"
+      ]
+    },
+    {
+      "id": 50,
+      "type": "Sapiens2SegExtract",
+      "pos": [
+        802.5299090426363,
+        3029.132557316321
+      ],
+      "size": [
+        281.48984375,
+        106
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "class_id_mask",
+          "type": "MASK",
+          "link": 99
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            100,
+            112
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sapiens2SegExtract"
+      },
+      "widgets_values": [
+        "Background",
+        false,
+        28
+      ]
+    },
+    {
+      "id": 65,
+      "type": "SaveGLB",
+      "pos": [
+        1576.909435494465,
+        4553.457437922179
+      ],
+      "size": [
+        400,
+        550
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mesh",
+          "type": "MESH,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D_STL,FILE_3D_USDZ,FILE_3D",
+          "link": 116
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Scene Config": {
+          "showGrid": true,
+          "backgroundColor": "#282828",
+          "backgroundImage": "",
+          "backgroundRenderMode": "tiled"
+        },
+        "Camera Config": {
+          "cameraType": "perspective",
+          "fov": 35,
+          "state": {
+            "position": {
+              "x": 0.5038472483468484,
+              "y": 4.592638242102204,
+              "z": 15.472631506559532
+            },
+            "target": {
+              "x": 0,
+              "y": 2.240726042594208,
+              "z": 0
+            },
+            "zoom": 1,
+            "cameraType": "perspective"
+          }
+        },
+        "Light Config": {
+          "intensity": 3
+        }
+      },
+      "widgets_values": [
+        "mesh/ComfyUI",
+        ""
+      ]
+    },
+    {
+      "id": 61,
+      "type": "InvertMask",
+      "pos": [
+        634.349244781858,
+        3415.7869431136432
+      ],
+      "size": [
+        140,
+        26
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 112
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            113,
+            118
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InvertMask"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 8,
+      "type": "UNETLoader",
+      "pos": [
+        -781.5548550828588,
+        3716.7521499753743
+      ],
+      "size": [
+        325.4080459617361,
+        82
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "diffusion_models\\rt_detr_v4-x-hgnet_fp16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 67,
+      "type": "Note",
+      "pos": [
+        38.60395941506733,
+        3284.8765545607757
+      ],
+      "size": [
+        263.5515760934395,
+        128.42850096645498
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: Mask",
+      "properties": {},
+      "widgets_values": [
+        "Segment Mask is not technically necessary, but in practice normal/3D outputs aren't useful without it, we can use the sapien's own segment model for that as an example"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      7,
+      8,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      14,
+      10,
+      0,
+      13,
+      1,
+      "SAPIENS2_MODEL"
+    ],
+    [
+      71,
+      17,
+      0,
+      35,
+      0,
+      "IMAGE"
+    ],
+    [
+      72,
+      13,
+      0,
+      36,
+      0,
+      "POSE_KEYPOINT"
+    ],
+    [
+      73,
+      36,
+      0,
+      17,
+      1,
+      "IMAGE"
+    ],
+    [
+      82,
+      38,
+      0,
+      40,
+      0,
+      "IMAGE"
+    ],
+    [
+      83,
+      40,
+      0,
+      7,
+      1,
+      "IMAGE"
+    ],
+    [
+      96,
+      47,
+      0,
+      46,
+      1,
+      "SAPIENS2_MODEL"
+    ],
+    [
+      97,
+      46,
+      1,
+      48,
+      0,
+      "IMAGE"
+    ],
+    [
+      99,
+      46,
+      0,
+      50,
+      0,
+      "MASK"
+    ],
+    [
+      100,
+      50,
+      0,
+      49,
+      0,
+      "MASK"
+    ],
+    [
+      101,
+      40,
+      0,
+      51,
+      0,
+      "IMAGE"
+    ],
+    [
+      103,
+      52,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      104,
+      53,
+      0,
+      46,
+      0,
+      "IMAGE"
+    ],
+    [
+      105,
+      54,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      106,
+      7,
+      0,
+      55,
+      0,
+      "BOUNDING_BOX"
+    ],
+    [
+      107,
+      56,
+      0,
+      13,
+      2,
+      "BOUNDING_BOX"
+    ],
+    [
+      108,
+      57,
+      0,
+      58,
+      1,
+      "SAPIENS2_MODEL"
+    ],
+    [
+      109,
+      59,
+      0,
+      58,
+      0,
+      "IMAGE"
+    ],
+    [
+      111,
+      58,
+      0,
+      60,
+      0,
+      "IMAGE"
+    ],
+    [
+      112,
+      50,
+      0,
+      61,
+      0,
+      "MASK"
+    ],
+    [
+      113,
+      61,
+      0,
+      58,
+      2,
+      "MASK"
+    ],
+    [
+      114,
+      62,
+      0,
+      63,
+      1,
+      "SAPIENS2_MODEL"
+    ],
+    [
+      115,
+      64,
+      0,
+      63,
+      0,
+      "IMAGE"
+    ],
+    [
+      116,
+      63,
+      0,
+      65,
+      0,
+      "FILE_3D_GLB"
+    ],
+    [
+      118,
+      61,
+      0,
+      63,
+      2,
+      "MASK"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Body Segment",
+      "bounding": [
+        392.3209833089889,
+        2723.1572939543,
+        1720.2270572355453,
+        817.0331903442129
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Pose",
+      "bounding": [
+        388.44310831139796,
+        5202.329589288883,
+        1936.267228475528,
+        855.0858990527968
+      ],
+      "color": "#88A",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Normals",
+      "bounding": [
+        388.55183136069616,
+        3572.1808889897725,
+        1724.6711673428458,
+        720.5383590275037
+      ],
+      "color": "#a1309b",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "Points (3D)",
+      "bounding": [
+        384.83168231350106,
+        4329.362345742115,
+        1724.8896078985895,
+        848.0940840915327
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Input",
+      "bounding": [
+        -1182.414060015257,
+        3572.4705523988923,
+        1502.253508563106,
+        820.2645079779472
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.4791080528505963,
+      "offset": [
+        2122.7753632570084,
+        -2591.5900960226304
+      ]
+    },
+    "frontendVersion": "1.43.1",
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

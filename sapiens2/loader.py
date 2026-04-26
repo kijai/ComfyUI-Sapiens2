@@ -64,15 +64,12 @@ def _detect_task(sd: Dict[str, torch.Tensor]) -> Optional[str]:
 def _extract_upsample_channels(sd) -> List[int]:
     """Read out_ch from `decode_head.upsample_blocks.{i}.0.weight` shapes
     (Conv2d weight (out_ch*4, in_ch, 3, 3) feeding a PixelShuffle(2))."""
-    indices: List[int] = []
-    for k in sd:
-        if k.startswith("decode_head.upsample_blocks.") and k.endswith(".0.weight"):
-            seg = k[len("decode_head.upsample_blocks."):-len(".0.weight")]
-            if seg.isdigit():
-                indices.append(int(seg))
-    indices.sort()
-    return [sd[f"decode_head.upsample_blocks.{i}.0.weight"].shape[0] // 4
-            for i in indices]
+    chs: List[int] = []
+    i = 0
+    while (k := f"decode_head.upsample_blocks.{i}.0.weight") in sd:
+        chs.append(sd[k].shape[0] // 4)
+        i += 1
+    return chs
 
 
 def _extract_dense_conv_layers(sd) -> Tuple[List[int], List[int]]:
@@ -120,14 +117,10 @@ def _build_pointmap_head(sd, dtype, device, operations, embed_dim) -> PointmapHe
         scale_kwargs["scale_conv_kernel_sizes"] = tuple(scale_ks)
 
         # final Linear stack: scale_final_layer.{1,3,5,...}.weight
-        sfl: List[int] = []
-        # in_features of first Linear:
-        first = sd["decode_head.scale_final_layer.1.weight"]
-        sfl.append(first.shape[1])  # in_features
-        sfl.append(first.shape[0])  # out_features
-        j = 3
-        while f"decode_head.scale_final_layer.{j}.weight" in sd:
-            sfl.append(sd[f"decode_head.scale_final_layer.{j}.weight"].shape[0])
+        sfl: List[int] = [sd["decode_head.scale_final_layer.1.weight"].shape[1]]
+        j = 1
+        while (k := f"decode_head.scale_final_layer.{j}.weight") in sd:
+            sfl.append(sd[k].shape[0])
             j += 2
         scale_kwargs["scale_final_layer"] = tuple(sfl)
     else:

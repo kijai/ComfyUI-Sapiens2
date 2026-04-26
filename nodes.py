@@ -22,7 +22,6 @@ _sapiens2_dir = os.path.join(folder_paths.models_dir, "sapiens2")
 os.makedirs(_sapiens2_dir, exist_ok=True)
 folder_paths.add_model_folder_path("sapiens2", _sapiens2_dir)
 
-
 # Constants
 _SEG_PALETTE = [
     (0, 0, 0),       (128, 0, 0),     (0, 128, 0),     (128, 128, 0),
@@ -33,6 +32,19 @@ _SEG_PALETTE = [
     (0, 64, 128),    (128, 64, 128),  (0, 192, 128),   (128, 192, 128),
     (64, 64, 0),     (192, 64, 0),    (64, 192, 0),    (192, 192, 0),
     (64, 64, 128),
+]
+
+# Sapiens2 body-part segmentation class names (29 classes, upstream order
+# from sapiens2/docs/SEG.md). Differs from Goliath-28 by an inserted
+# "Eyeglass" class at index 2.
+_SAPIENS2_SEG_CLASSES = [
+    "Background", "Apparel", "Eyeglass", "Face_Neck", "Hair", "Left_Foot",
+    "Left_Hand", "Left_Lower_Arm", "Left_Lower_Leg", "Left_Shoe", "Left_Sock",
+    "Left_Upper_Arm", "Left_Upper_Leg", "Lower_Clothing", "Right_Foot",
+    "Right_Hand", "Right_Lower_Arm", "Right_Lower_Leg", "Right_Shoe",
+    "Right_Sock", "Right_Upper_Arm", "Right_Upper_Leg", "Torso",
+    "Upper_Clothing", "Lower_Lip", "Upper_Lip", "Lower_Teeth", "Upper_Teeth",
+    "Tongue",
 ]
 
 # Goliath-308 → OpenPose subset mappings.
@@ -515,19 +527,49 @@ class Sapiens2Seg(io.ComfyNode):
         num_classes = None
         for _, logits in _iter_chunks(patcher, x, frames_per_batch, desc="Sapiens2 Seg"):
             num_classes = logits.shape[1]
-            ids = logits.argmax(dim=1)
-            ids = F.interpolate(ids.unsqueeze(1).float(), size=(1024, 768), mode="nearest").squeeze(1).to(torch.long)
-            ids = crop_pad_and_resize(
-                ids.unsqueeze(1).float(), padding, orig_hw[0], orig_hw[1],
-                upscale_method="nearest-exact",
-            ).squeeze(1).to(torch.long)
-            id_chunks.append(ids.to(out_device))
+            ids = logits.argmax(dim=1, keepdim=True).float()
+            ids = F.interpolate(ids, size=(1024, 768), mode="nearest")
+            ids = crop_pad_and_resize(ids, padding, orig_hw[0], orig_hw[1], upscale_method="nearest-exact")
+            id_chunks.append(ids.squeeze(1).to(device=out_device, dtype=torch.long))
         class_ids = torch.cat(id_chunks, dim=0)
 
         palette = torch.tensor(_SEG_PALETTE[:num_classes], device=class_ids.device, dtype=out_dtype) / 255.0
         colored = palette[class_ids]
         mask = class_ids.to(out_dtype) / max((num_classes or 1) - 1, 1)
         return io.NodeOutput(mask, colored)
+
+
+class Sapiens2SegExtract(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="Sapiens2SegExtract",
+            display_name="Sapiens2 Seg Extract Class",
+            category="Sapiens2",
+            inputs=[
+                io.Mask.Input("class_id_mask",
+                    tooltip="The class_id_mask output from Sapiens2 Body-Part "
+                            "Segmentation — values are class_id / (num_classes-1)."),
+                io.Combo.Input("class_name", options=_SAPIENS2_SEG_CLASSES,
+                    default="Face_Neck"),
+                io.Boolean.Input("invert", default=False,
+                    tooltip="Invert the resulting binary mask."),
+                io.Int.Input("num_classes", default=29, min=2, max=256,
+                    tooltip="Total number of classes in the source segmentation. "
+                            "Sapiens2 standard is 29 (Goliath-28 + Eyeglass)."),
+            ],
+            outputs=[io.Mask.Output(display_name="mask")],
+        )
+
+    @classmethod
+    def execute(cls, class_id_mask, class_name, invert, num_classes) -> io.NodeOutput:
+        target = _SAPIENS2_SEG_CLASSES.index(class_name)
+        ids = (class_id_mask.float() * max(num_classes - 1, 1)).round().long()
+        mask = (ids == target)
+        if invert:
+            mask = ~mask
+        out_dtype = comfy.model_management.intermediate_dtype()
+        return io.NodeOutput(mask.to(dtype=out_dtype))
 
 
 class Sapiens2Pointmap(io.ComfyNode):
@@ -718,6 +760,10 @@ class Sapiens2Pose(io.ComfyNode):
         # Bbox-crop path: per-person TopdownAffine → DARK decode → remap.
         if bboxes is not None and (not isinstance(bboxes, list) or len(bboxes) > 0):
             bb_per_frame = _normalize_bboxes(bboxes, T)
+            # Frames the upstream detector found nothing in fall back to a
+            # full-frame bbox so every frame still produces a pose.
+            full_frame = [(0, 0, cw, ch)]
+            bb_per_frame = [bbs if bbs else full_frame for bbs in bb_per_frame]
             x, mapping = _make_bbox_crops(image, bb_per_frame, 1024, 768, device, torch.float16)
             if x is None:
                 empty = [{"canvas_width": cw, "canvas_height": ch, "people": []} for _ in range(T)]
@@ -784,7 +830,7 @@ class Sapiens2DrawPose(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="Sapiens2DrawPose",
-            display_name="Sapiens2 Draw Pose (308 KP)",
+            display_name="Sapiens2 Draw Pose",
             category="Sapiens2",
             inputs=[
                 io.Custom("POSE_KEYPOINT").Input("keypoints"),
@@ -811,6 +857,22 @@ class Sapiens2DrawPose(io.ComfyNode):
 
         if not keypoints:
             return io.NodeOutput(torch.zeros((1, 64, 64, 3), device=out_device, dtype=out_dtype))
+
+        # OpenPose-format input (no raw 308-kp payload) → delegate to ComfyUI's native SDPose drawer
+        if any("pose_keypoints_2d" in p
+               for f in keypoints
+               for p in f.get("people", [])):
+            from comfy_extras.nodes_sdpose import SDPoseDrawKeypoints
+            return SDPoseDrawKeypoints.execute(
+                keypoints,
+                draw_body=draw_skeleton,
+                draw_hands=draw_skeleton,
+                draw_face=draw_face,
+                draw_feet=draw_points,
+                stick_width=stick_width,
+                face_point_size=point_radius,
+                score_threshold=score_threshold,
+            )
 
         outputs = []
         for f_idx, frame in enumerate(keypoints):
@@ -872,6 +934,7 @@ class Sapiens2Extension(ComfyExtension):
             Sapiens2Loader,
             Sapiens2Normal,
             Sapiens2Seg,
+            Sapiens2SegExtract,
             Sapiens2Pointmap,
             Sapiens2Pose,
             Sapiens2DrawPose,

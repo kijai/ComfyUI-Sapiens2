@@ -1,5 +1,5 @@
 import math
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -16,23 +16,17 @@ class RopePositionEmbedding(nn.Module):
         super().__init__()
         D_head = embed_dim // num_heads
         self.D_head = D_head
-        self.register_buffer(
-            "periods",
-            torch.empty(D_head // 4, device=device, dtype=torch.bfloat16),
-            persistent=True,
+        periods = 100.0 ** (
+            2 * torch.arange(D_head // 4, device=device, dtype=torch.bfloat16) / (D_head // 2)
         )
-
-        self.periods.data.copy_(
-            100.0 ** (
-                2
-                * torch.arange(D_head // 4, device=device, dtype=torch.bfloat16)
-                / (D_head // 2)
-            )
-        )
+        self.register_buffer("periods", periods, persistent=True)
+        self._cache_hw: Optional[Tuple[int, int]] = None
+        self._cache: Optional[Tuple[Tensor, Tensor]] = None
 
     def forward(self, *, H: int, W: int) -> Tuple[Tensor, Tensor]:
-        device = self.periods.device
-        dd = {"device": device, "dtype": torch.bfloat16}
+        if self._cache_hw == (H, W):
+            return self._cache
+        dd = {"device": self.periods.device, "dtype": torch.bfloat16}
         coords_h = torch.arange(0.5, H, **dd) / H
         coords_w = torch.arange(0.5, W, **dd) / W
         coords = torch.stack(
@@ -41,7 +35,9 @@ class RopePositionEmbedding(nn.Module):
         coords = 2.0 * coords - 1.0
         angles = 2 * math.pi * coords[:, :, None] / self.periods[None, None, :]
         angles = angles.flatten(1, 2).tile(2)
-        return torch.sin(angles), torch.cos(angles)
+        self._cache = (torch.sin(angles), torch.cos(angles))
+        self._cache_hw = (H, W)
+        return self._cache
 
 
 class LayerScale(nn.Module):
@@ -55,7 +51,7 @@ class LayerScale(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         w = comfy.model_management.cast_to_device(self.weight, x.device, x.dtype)
-        return x * w
+        return x.mul_(w)
 
 
 class PatchEmbed(nn.Module):
@@ -120,7 +116,7 @@ class GroupedQueryAttention(nn.Module):
         # rotate-half then x*cos + rotate(x)*sin
         x1, x2 = qk.chunk(2, dim=-1)
         rotated = torch.cat([-x2, x1], dim=-1)
-        return qk * cos + rotated * sin
+        return torch.mul(qk, cos).addcmul_(rotated, sin)
 
     def forward(self, x: Tensor, rope: Tuple[Tensor, Tensor]) -> Tensor:
         B, N, _ = x.shape
@@ -137,12 +133,10 @@ class GroupedQueryAttention(nn.Module):
             v = v.repeat_interleave(factor, dim=1)
 
         sin, cos = rope
-        sin = sin.to(q.dtype)
-        cos = cos.to(q.dtype)
         n_extra = q.shape[-2] - sin.shape[-2]
         # apply rope only to patch tokens (skip the n_extra cls+storage prefix)
-        q = torch.cat([q[:, :, :n_extra], self._apply_rope(q[:, :, n_extra:], sin, cos)], dim=-2)
-        k = torch.cat([k[:, :, :n_extra], self._apply_rope(k[:, :, n_extra:], sin, cos)], dim=-2)
+        q[:, :, n_extra:] = self._apply_rope(q[:, :, n_extra:], sin, cos)
+        k[:, :, n_extra:] = self._apply_rope(k[:, :, n_extra:], sin, cos)
 
         out = optimized_attention(q, k, v, heads=self.num_heads, skip_reshape=True)
         return self.gamma(self.proj(out))
@@ -166,7 +160,7 @@ class TransformerEncoderLayer2(nn.Module):
         )
 
     def forward(self, x: Tensor, rope: Tuple[Tensor, Tensor]) -> Tensor:
-        x = x + self.attn(self.ln1(x), rope)
+        x.add_(self.attn(self.ln1(x), rope))
         return self.ffn(self.ln2(x), identity=x)
 
 ARCHS = {
@@ -227,7 +221,8 @@ class Sapiens2(nn.Module):
             prepend.append(st)
         x = torch.cat(prepend + [x], dim=1)
 
-        rope = self.rope_embed(H=hw[0], W=hw[1])
+        sin, cos = self.rope_embed(H=hw[0], W=hw[1])
+        rope = (sin.to(x.dtype), cos.to(x.dtype))
         for layer in self.blocks:
             x = layer(x, rope)
         x = self.ln1(x)
