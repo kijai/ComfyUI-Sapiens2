@@ -1,0 +1,15 @@
+[project]
+name = "ComfyUI-Sapiens2"
+description = "ComfyUI nodes to use Sapiens2"
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/kijai/ComfyUI-Sapiens2"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "kijai"
+DisplayName = "ComfyUI-Sapiens2"
+Icon = "https://avatars.githubusercontent.com/u/40791699"
