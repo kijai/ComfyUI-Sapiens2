@@ -247,5 +247,5 @@ def load_sapiens2(filename: str):
         logging.info(f"[Sapiens2] unexpected keys ({len(incompat.unexpected_keys)}): "
                      f"{incompat.unexpected_keys[:5]}{'...' if len(incompat.unexpected_keys) > 5 else ''}")
 
-    patcher = comfy.model_patcher.ModelPatcherDynamic(model, load_device=load_device, offload_device=offload_device)
+    patcher = comfy.model_patcher.CoreModelPatcher(model, load_device=load_device, offload_device=offload_device)
     return patcher, task
