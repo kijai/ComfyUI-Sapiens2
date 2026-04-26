@@ -127,6 +127,28 @@ _KP_COLORS = (
 def _kp_color(idx: int):
     return _KP_COLORS[idx] if 0 <= idx < 308 else (200, 200, 200)
 
+def _apply_fg_mask(image_bhwc: torch.Tensor, mask) -> torch.Tensor:
+    """Zero out pixels in ``image_bhwc`` (B, H, W, C) where the foreground mask is 0."""
+    if mask is None:
+        return image_bhwc
+    m = mask
+    if m.dim() == 2:
+        m = m[None, ..., None]
+    elif m.dim() == 3:
+        m = m[..., None]
+    elif m.dim() == 4:
+        m = m.movedim(1, -1)  # (B, 1, H, W) -> (B, H, W, 1)
+    if m.shape[-3:-1] != image_bhwc.shape[-3:-1]:
+        m_resized = F.interpolate(
+            m.movedim(-1, 1).float(),
+            size=image_bhwc.shape[-3:-1],
+            mode="nearest",
+        ).movedim(1, -1)
+        m = m_resized
+    m = (m > 0.5).to(image_bhwc.dtype)
+    return image_bhwc * m
+
+
 def _iter_chunks(patcher, x_bchw, frames_per_batch: int, desc: str = "Sapiens2"):
     """Yield ``(start_index, model_output)`` for each chunk of size
     ``frames_per_batch``. Reports progress to both the ComfyUI web UI and
@@ -282,7 +304,6 @@ def _goliath_to_dlib68_face_np(kps_np, sc_np):
     return out
 
 
-
 # Pose: format builders
 def _flatten_subset_np(kps_np, sc_np, indices_np):
     out = np.empty((indices_np.shape[0], 3), dtype=np.float32)
@@ -435,12 +456,15 @@ class Sapiens2Normal(io.ComfyNode):
                 io.Image.Input("image"),
                 io.Custom("SAPIENS2_MODEL").Input("sapiens2_model"),
                 io.Int.Input("frames_per_batch", default=1, min=1, max=256, tooltip=_FRAMES_PER_BATCH_TOOLTIP),
+                io.Mask.Input("mask", optional=True,
+                    tooltip="Optional foreground mask. Where mask=0 the output is "
+                            "black — matches upstream vis_normal.py with --seg_dir."),
             ],
             outputs=[io.Image.Output(display_name="normal")],
         )
 
     @classmethod
-    def execute(cls, image, sapiens2_model, frames_per_batch) -> io.NodeOutput:
+    def execute(cls, image, sapiens2_model, frames_per_batch, mask=None) -> io.NodeOutput:
         patcher, task = sapiens2_model
         if task != "normal":
             raise ValueError(f"loaded checkpoint is task={task!r}, expected 'normal'")
@@ -455,6 +479,8 @@ class Sapiens2Normal(io.ComfyNode):
             n = crop_pad_and_resize(n, padding, orig_hw[0], orig_hw[1])
             chunks.append(n.to(device=out_device, dtype=out_dtype))
         out = torch.cat(chunks, dim=0).clamp_(0.0, 1.0).movedim(1, -1)
+        if mask is not None:
+            out = _apply_fg_mask(out, mask)
         return io.NodeOutput(out)
 
 
@@ -505,40 +531,152 @@ class Sapiens2Seg(io.ComfyNode):
 
 
 class Sapiens2Pointmap(io.ComfyNode):
+
     @classmethod
     def define_schema(cls):
         return io.Schema(
             node_id="Sapiens2Pointmap",
-            display_name="Sapiens2 Pointmap (XYZ)",
+            display_name="Sapiens2 Pointmap → GLB",
             category="Sapiens2",
             inputs=[
-                io.Image.Input("image"),
+                io.Image.Input("image", tooltip="Source image — also baked as the mesh texture."),
                 io.Custom("SAPIENS2_MODEL").Input("sapiens2_model"),
                 io.Int.Input("frames_per_batch", default=1, min=1, max=256, tooltip=_FRAMES_PER_BATCH_TOOLTIP),
+                io.Float.Input("rtol", default=0.04, min=0.001, max=1.0, step=0.001,
+                    tooltip="Per-pixel depth-jump tolerance ((max-min)/center over a 3×3 "
+                            "neighbourhood). Pixels above this are treated as silhouette "
+                            "edges and dropped. Lower = stricter."),
+                io.Float.Input("min_depth", default=0.05, min=0.0, max=10.0, step=0.01,
+                    tooltip="Discard pixels whose Z is below this (metres)."),
+                io.Float.Input("max_depth", default=25.0, min=0.5, max=200.0, step=0.5,
+                    tooltip="Discard pixels whose Z is above this (metres)."),
+                io.String.Input("filename_prefix", default="sapiens2_pointmap"),
+                io.Mask.Input("mask", optional=True,
+                    tooltip="Optional foreground mask — strongly recommended."),
             ],
-            outputs=[io.Image.Output(display_name="pointmap_xyz")],
+            outputs=[io.File3DGLB.Output(display_name="model")],
         )
 
     @classmethod
-    def execute(cls, image, sapiens2_model, frames_per_batch) -> io.NodeOutput:
+    def execute(cls, image, sapiens2_model, frames_per_batch, rtol,
+                min_depth, max_depth, filename_prefix, mask=None) -> io.NodeOutput:
+        import trimesh
+        from PIL import Image as PILImage
+        from comfy_api.latest import File3D
+
         patcher, task = sapiens2_model
         if task != "pointmap":
             raise ValueError(f"loaded checkpoint is task={task!r}, expected 'pointmap'")
         comfy.model_management.load_model_gpu(patcher)
         x, orig_hw, padding = to_model_input(image, device=patcher.load_device, dtype=torch.float16)
         out_device = comfy.model_management.intermediate_device()
-        out_dtype = comfy.model_management.intermediate_dtype()
+
         chunks = []
         for _, out in _iter_chunks(patcher, x, frames_per_batch, desc="Sapiens2 Pointmap"):
-            pm = (out[0] if isinstance(out, tuple) else out).to(torch.float32)
+            if isinstance(out, tuple):
+                # PointmapHead emits a (B, 1) scale — divide to get metric XYZ.
+                pm = out[0].to(torch.float32)
+                scale = out[1].to(torch.float32).clamp(min=1e-6).view(-1, 1, 1, 1)
+                pm = pm / scale
+            else:
+                pm = out.to(torch.float32)
             pm = crop_pad_and_resize(pm, padding, orig_hw[0], orig_hw[1])
-            flat = pm.flatten(2)
-            mn = flat.quantile(0.01, dim=2)[..., None, None]
-            mx = flat.quantile(0.99, dim=2)[..., None, None]
-            pm = ((pm - mn) / (mx - mn + 1e-6)).clamp_(0.0, 1.0)
-            chunks.append(pm.to(device=out_device, dtype=out_dtype))
-        out = torch.cat(chunks, dim=0).movedim(1, -1)
-        return io.NodeOutput(out)
+            chunks.append(pm.to(device=out_device, dtype=torch.float32))
+
+        xyz_full = torch.cat(chunks, dim=0).movedim(1, -1).contiguous()        # (B, H, W, 3)
+        if mask is not None:
+            xyz_full = _apply_fg_mask(xyz_full, mask)
+        B, H, W, _ = xyz_full.shape
+
+        # ---- Pixel validity: foreground mask, depth range, 3×3 depth-jump rtol ----
+        valid = torch.ones((B, H, W), dtype=torch.bool, device=xyz_full.device)
+        if mask is not None:
+            m = mask
+            if m.dim() == 2:
+                m = m[None]
+            elif m.dim() == 4:
+                m = m.squeeze(1)
+            if m.shape[-2:] != (H, W):
+                m = F.interpolate(m[:, None].float(), size=(H, W), mode="nearest").squeeze(1)
+            valid &= (m.to(xyz_full.device) > 0.5)
+
+        depth = xyz_full[..., 2]                                              # (B, H, W)
+        valid &= (depth > min_depth) & (depth < max_depth)
+        d4 = depth.unsqueeze(1)
+        d_max = F.max_pool2d(d4, kernel_size=3, stride=1, padding=1).squeeze(1)
+        d_min = -F.max_pool2d(-d4, kernel_size=3, stride=1, padding=1).squeeze(1)
+        valid &= ((d_max - d_min) / depth.clamp(min=1e-6)) <= rtol
+
+        # ---- Axis flip (Y, Z) ----
+        flipped = xyz_full * torch.tensor([1.0, -1.0, -1.0], device=xyz_full.device)
+
+        # ---- UVs and triangle template (shared across frames) ----
+        ys = torch.arange(H, dtype=torch.float32, device=xyz_full.device) / max(H - 1, 1)
+        xs = torch.arange(W, dtype=torch.float32, device=xyz_full.device) / max(W - 1, 1)
+        u_grid, v_grid = torch.meshgrid(xs, ys, indexing="xy")
+        uv_flat = torch.stack([u_grid, 1.0 - v_grid], dim=-1).reshape(-1, 2)
+
+        ii = torch.arange(H - 1, device=xyz_full.device).view(-1, 1).expand(-1, W - 1)
+        jj = torch.arange(W - 1, device=xyz_full.device).view(1, -1).expand(H - 1, -1)
+        tl = (ii * W + jj).reshape(-1)
+        tri_template = torch.cat([
+            torch.stack([tl, tl + W, tl + 1], dim=-1),
+            torch.stack([tl + 1, tl + W, tl + W + 1], dim=-1),
+        ], dim=0).to(torch.int64)
+
+        out_dir = folder_paths.get_output_directory()
+        os.makedirs(out_dir, exist_ok=True)
+        existing = {f for f in os.listdir(out_dir)
+                    if f.startswith(filename_prefix + "_") and f.endswith(".glb")}
+        idx = 0
+        last_path = None
+
+        for b in range(B):
+            v_flat = flipped[b].reshape(-1, 3)
+            vmask = valid[b].reshape(-1)
+            tris = tri_template[vmask[tri_template].all(dim=-1)]
+            if tris.shape[0] == 0:
+                continue
+
+            used = torch.unique(tris.reshape(-1))
+            idx_map = torch.full((H * W,), -1, dtype=torch.long, device=xyz_full.device)
+            idx_map[used] = torch.arange(used.numel(), device=xyz_full.device)
+            verts = v_flat[used]
+            verts = verts - verts.mean(dim=0, keepdim=True)
+
+            verts_np = verts.cpu().numpy()
+            uvs_np = uv_flat[used].cpu().numpy()
+            faces_np = idx_map[tris].cpu().numpy()
+
+            tex_idx = min(b, image.shape[0] - 1)
+            tex_np = (image[tex_idx].cpu().numpy() * 255.0).clip(0, 255).astype("uint8")
+            tex_pil = PILImage.fromarray(tex_np, mode="RGB")
+            material = trimesh.visual.material.PBRMaterial(
+                baseColorTexture=tex_pil,
+                metallicFactor=0.5,
+                roughnessFactor=1.0,
+                doubleSided=True,
+            )
+            mesh = trimesh.Trimesh(
+                vertices=verts_np,
+                faces=faces_np,
+                visual=trimesh.visual.TextureVisuals(uv=uvs_np, material=material),
+                process=False,
+            )
+
+            while f"{filename_prefix}_{idx:05d}.glb" in existing:
+                idx += 1
+            out_path = os.path.join(out_dir, f"{filename_prefix}_{idx:05d}.glb")
+            mesh.export(out_path)
+            existing.add(f"{filename_prefix}_{idx:05d}.glb")
+            idx += 1
+            last_path = out_path
+
+        if last_path is None:
+            raise RuntimeError("No mesh produced — every pixel was filtered out. "
+                               "Try a wider rtol or relax min/max depth, and connect a "
+                               "foreground mask.")
+        return io.NodeOutput(File3D(last_path, file_format="glb"))
 
 
 class Sapiens2Pose(io.ComfyNode):
