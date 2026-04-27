@@ -444,7 +444,7 @@ class Sapiens2Loader(io.ComfyNode):
             display_name="Sapiens2 Loader",
             category="Sapiens2",
             inputs=[
-                io.Combo.Input("checkpoint", options=folder_paths.get_filename_list("sapiens2")),
+                io.Combo.Input("checkpoint", options=folder_paths.get_filename_list("sapiens2"), tooltip="models/sapiens2"),
             ],
             outputs=[io.Custom("SAPIENS2_MODEL").Output("sapiens2_model")],
         )
