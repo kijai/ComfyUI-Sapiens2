@@ -680,14 +680,12 @@ class Sapiens2Pointmap(io.ComfyNode):
                 continue
 
             used = torch.unique(tris.reshape(-1))
-            idx_map = torch.full((H * W,), -1, dtype=torch.long, device=xyz_full.device)
-            idx_map[used] = torch.arange(used.numel(), device=xyz_full.device)
             verts = v_flat[used]
             verts = verts - verts.mean(dim=0, keepdim=True)
 
             verts_np = verts.cpu().numpy()
             uvs_np = uv_flat[used].cpu().numpy()
-            faces_np = idx_map[tris].cpu().numpy()
+            faces_np = torch.searchsorted(used, tris).cpu().numpy()
 
             tex_idx = min(b, image.shape[0] - 1)
             tex_np = (image[tex_idx].cpu().numpy() * 255.0).clip(0, 255).astype("uint8")
