@@ -10,6 +10,7 @@ import comfy.utils
 import folder_paths
 from comfy_api.latest import ComfyExtension, io
 
+from .glb import save_textured_glb
 from .sapiens2.loader import load_sapiens2
 from .sapiens2.preprocess import (
     IMAGENET_MEAN,
@@ -602,8 +603,6 @@ class Sapiens2Pointmap(io.ComfyNode):
     @classmethod
     def execute(cls, image, sapiens2_model, frames_per_batch, rtol,
                 min_depth, max_depth, filename_prefix, mask=None) -> io.NodeOutput:
-        import trimesh
-        from PIL import Image as PILImage
         from comfy_api.latest import File3D
 
         patcher, task = sapiens2_model
@@ -656,7 +655,7 @@ class Sapiens2Pointmap(io.ComfyNode):
         ys = torch.arange(H, dtype=torch.float32, device=xyz_full.device) / max(H - 1, 1)
         xs = torch.arange(W, dtype=torch.float32, device=xyz_full.device) / max(W - 1, 1)
         u_grid, v_grid = torch.meshgrid(xs, ys, indexing="xy")
-        uv_flat = torch.stack([u_grid, 1.0 - v_grid], dim=-1).reshape(-1, 2)
+        uv_flat = torch.stack([u_grid, v_grid], dim=-1).reshape(-1, 2)
 
         ii = torch.arange(H - 1, device=xyz_full.device).view(-1, 1).expand(-1, W - 1)
         jj = torch.arange(W - 1, device=xyz_full.device).view(1, -1).expand(H - 1, -1)
@@ -692,24 +691,11 @@ class Sapiens2Pointmap(io.ComfyNode):
 
             tex_idx = min(b, image.shape[0] - 1)
             tex_np = (image[tex_idx].cpu().numpy() * 255.0).clip(0, 255).astype("uint8")
-            tex_pil = PILImage.fromarray(tex_np, mode="RGB")
-            material = trimesh.visual.material.PBRMaterial(
-                baseColorTexture=tex_pil,
-                metallicFactor=0.5,
-                roughnessFactor=1.0,
-                doubleSided=True,
-            )
-            mesh = trimesh.Trimesh(
-                vertices=verts_np,
-                faces=faces_np,
-                visual=trimesh.visual.TextureVisuals(uv=uvs_np, material=material),
-                process=False,
-            )
 
             while f"{filename_prefix}_{idx:05d}.glb" in existing:
                 idx += 1
             out_path = os.path.join(out_dir, f"{filename_prefix}_{idx:05d}.glb")
-            mesh.export(out_path)
+            save_textured_glb(verts_np, uvs_np, faces_np, tex_np, out_path)
             existing.add(f"{filename_prefix}_{idx:05d}.glb")
             idx += 1
             last_path = out_path
