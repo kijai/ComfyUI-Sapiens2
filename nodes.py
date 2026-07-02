@@ -819,6 +819,7 @@ class Sapiens2DrawPose(io.ComfyNode):
             inputs=[
                 io.Custom("POSE_KEYPOINT").Input("keypoints"),
                 io.Boolean.Input("draw_skeleton", default=True),
+                io.Boolean.Input("draw_head", default=True),
                 io.Boolean.Input("draw_points", default=True),
                 io.Boolean.Input("draw_face", default=True),
                 io.Int.Input("point_radius", default=3, min=1, max=20),
@@ -829,7 +830,7 @@ class Sapiens2DrawPose(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, keypoints, draw_skeleton, draw_points, draw_face,
+    def execute(cls, keypoints, draw_skeleton, draw_head, draw_points, draw_face,
                 point_radius, stick_width, score_threshold) -> io.NodeOutput:
         try:
             import cv2
@@ -856,6 +857,7 @@ class Sapiens2DrawPose(io.ComfyNode):
                 stick_width=stick_width,
                 face_point_size=point_radius,
                 score_threshold=score_threshold,
+                draw_head=draw_head,
             )
 
         outputs = []
