@@ -34,12 +34,24 @@ def _resize_pad_to(x_bchw, target_h, target_w):
 def to_model_input(image_bhwc, target_h=1024, target_w=768, device=None, dtype=None):
     """Convert a ComfyUI IMAGE batch into Sapiens2-ready (B, 3, H, W) input.
 
+    A ComfyUI IMAGE is not guaranteed to carry exactly 3 channels: any loader
+    that hands the PIL image straight to a tensor without ``convert("RGB")``
+    produces (B, H, W, 4) for a PNG that has an alpha channel (even a fully
+    opaque one), and grayscale sources produce (B, H, W, 1). Sapiens2 is a
+    3-channel model, so normalise the channel count here instead of letting the
+    ImageNet mean/std broadcast raise
+    ``RuntimeError: The size of tensor a (4) must match the size of tensor b (3)``.
+
     Returns ``(x, original_hw, padding)`` where ``padding`` is
     (top, bottom, left, right) in target-resolution pixels, and ``original_hw``
     is the input (H, W) before any resize.
     """
     h, w = image_bhwc.shape[1], image_bhwc.shape[2]
-    x = image_bhwc.movedim(-1, 1).contiguous()       # (B, 3, H, W), [0, 1]
+    x = image_bhwc.movedim(-1, 1).contiguous()       # (B, C, H, W), [0, 1]
+    if x.shape[1] > 3:
+        x = x[:, :3]                                 # drop alpha (and any extra channels)
+    elif x.shape[1] == 1:
+        x = x.repeat(1, 3, 1, 1)                     # gray -> RGB
     if device is not None:
         x = x.to(device=device, dtype=dtype, non_blocking=True)
     elif dtype is not None:
